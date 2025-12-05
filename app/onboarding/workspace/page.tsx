@@ -63,11 +63,12 @@ export default function WorkspaceSelection() {
                             <p className="text-white/60 text-sm mb-6 leading-relaxed">
                                 Let's get your repositories or organization connected and security ready. You decide and control which repos and orgs you want to grant us access to.
                             </p>
-                            <Link href="/onboarding/install">
+                            {/* Replace with your GitHub App Installation URL */}
+                            <a href={process.env.NEXT_PUBLIC_GITHUB_APP_INSTALL_URL || "https://github.com/apps/YOUR_APP_NAME/installations/new"}>
                                 <button className="px-6 py-3 bg-[#6366f1] hover:bg-[#4f46e5] text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-indigo-500/20 w-full sm:w-auto">
                                     Create A Workspace
                                 </button>
-                            </Link>
+                            </a>
                         </div>
                     </div>
 
@@ -79,9 +80,11 @@ export default function WorkspaceSelection() {
                             <p className="text-white/60 text-xs mb-6 leading-relaxed">
                                 Let's check which orgs or repos you have access to that are already set up in Oreva.
                             </p>
-                            <button className="px-6 py-3 bg-[#1a1f36] hover:bg-[#252b48] text-white rounded-xl font-semibold text-sm transition-all w-full">
-                                Join My Team
-                            </button>
+                            <Link href="/dashboard">
+                                <button className="px-6 py-3 bg-[#1a1f36] hover:bg-[#252b48] text-white rounded-xl font-semibold text-sm transition-all w-full">
+                                    Join My Team
+                                </button>
+                            </Link>
                         </div>
 
                         {/* Demo Workspace Card */}
@@ -91,9 +94,11 @@ export default function WorkspaceSelection() {
                             <p className="text-white/60 text-xs mb-6 leading-relaxed">
                                 We built a repo to test-drive Oreva without needing to connect your own repos.
                             </p>
-                            <button className="px-6 py-3 bg-[#1a1f36] hover:bg-[#252b48] text-white rounded-xl font-semibold text-sm transition-all w-full">
-                                Use Demo Workspace
-                            </button>
+                            <Link href="/dashboard">
+                                <button className="px-6 py-3 bg-[#1a1f36] hover:bg-[#252b48] text-white rounded-xl font-semibold text-sm transition-all w-full">
+                                    Use Demo Workspace
+                                </button>
+                            </Link>
                         </div>
                     </div>
 
