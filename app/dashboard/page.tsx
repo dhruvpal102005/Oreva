@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Search, Filter, Settings, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 interface Repository {
@@ -26,6 +27,7 @@ interface Repository {
 }
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [repos, setRepos] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -151,7 +153,11 @@ export default function DashboardPage() {
                                 </tr>
                             ) : (
                                 filteredRepos.map((repo) => (
-                                    <tr key={repo.id} className="hover:bg-gray-50 transition-colors">
+                                    <tr
+                                        key={repo.id}
+                                        onClick={() => router.push(`/dashboard/${repo.id}?name=${encodeURIComponent(repo.full_name)}&owner=${encodeURIComponent(repo.owner.login)}`)}
+                                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-md flex items-center justify-center text-gray-500 font-bold text-xs uppercase">
