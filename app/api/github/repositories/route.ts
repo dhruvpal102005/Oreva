@@ -28,7 +28,8 @@ export async function GET() {
         const installations = installationsData.installations;
 
         if (!installations || installations.length === 0) {
-            return NextResponse.json({ repositories: [] });
+            // If no installations found (or if it's a demo user), return mock data
+            return NextResponse.json({ repositories: MOCK_REPOS });
         }
 
         // 2. Fetch repositories for each installation
@@ -91,7 +92,7 @@ const MOCK_REPOS = [
         private: true,
         language: "TypeScript",
         updated_at: new Date().toISOString(),
-        owner: { login: "dhruvpal102005" },
+        owner: { login: "dhruvpal102005", avatar_url: "https://github.com/dhruvpal102005.png" },
         issues: { critical: 1, high: 2, medium: 1, low: 1 },
         ignored: 2,
         last_scan: "15h ago"
@@ -103,7 +104,7 @@ const MOCK_REPOS = [
         private: true,
         language: "TypeScript",
         updated_at: new Date().toISOString(),
-        owner: { login: "dhruvpal102005" },
+        owner: { login: "dhruvpal102005", avatar_url: "https://github.com/dhruvpal102005.png" },
         issues: { critical: 1, high: 3, medium: 0, low: 1 },
         ignored: 1,
         last_scan: "15h ago"
@@ -115,7 +116,7 @@ const MOCK_REPOS = [
         private: false,
         language: "Python",
         updated_at: new Date().toISOString(),
-        owner: { login: "dhruvpal102005" },
+        owner: { login: "dhruvpal102005", avatar_url: "https://github.com/dhruvpal102005.png" },
         issues: { critical: 0, high: 1, medium: 0, low: 0 },
         ignored: 0,
         last_scan: "15h ago"
@@ -127,7 +128,7 @@ const MOCK_REPOS = [
         private: false,
         language: "Rust",
         updated_at: new Date().toISOString(),
-        owner: { login: "dhruvpal102005" },
+        owner: { login: "dhruvpal102005", avatar_url: "https://github.com/dhruvpal102005.png" },
         issues: { critical: 0, high: 0, medium: 1, low: 0 },
         ignored: 0,
         last_scan: "15h ago"
