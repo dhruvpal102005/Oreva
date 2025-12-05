@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { adminDb } from "@/lib/firebase-admin";
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -20,15 +23,16 @@ export async function GET() {
 
         if (!installationsRes.ok) {
             console.error("Failed to fetch installations", await installationsRes.text());
-            // Fallback to mock data if API fails (e.g. if scope is missing or app not set up)
             return NextResponse.json({ repositories: MOCK_REPOS });
         }
 
         const installationsData = await installationsRes.json();
         const installations = installationsData.installations;
 
+        console.log(`Found ${installations?.length ?? 0} installations`);
+
         if (!installations || installations.length === 0) {
-            // If no installations found (or if it's a demo user), return mock data
+            console.warn("No installations found. Returning MOCK_REPOS. Sync skipped.");
             return NextResponse.json({ repositories: MOCK_REPOS });
         }
 
@@ -46,37 +50,68 @@ export async function GET() {
             if (reposRes.ok) {
                 const reposData = await reposRes.json();
                 allRepos = [...allRepos, ...reposData.repositories];
-            } else {
-                console.error(`Failed to fetch repos for installation ${install.id}`, await reposRes.text());
             }
         }
 
-        // Transform to match our Dashboard UI needs
-        const formattedRepos = allRepos.map((repo: any) => ({
-            id: repo.id,
-            name: repo.name,
-            full_name: repo.full_name,
-            private: repo.private,
-            html_url: repo.html_url,
-            description: repo.description,
-            language: repo.language,
-            updated_at: repo.updated_at,
-            owner: {
-                login: repo.owner.login,
-                avatar_url: repo.owner.avatar_url,
-            },
-            // Mocking security data as it's not in standard repo response
-            issues: {
-                critical: Math.floor(Math.random() * 2),
-                high: Math.floor(Math.random() * 3),
-                medium: Math.floor(Math.random() * 5),
-                low: Math.floor(Math.random() * 5),
-            },
-            ignored: Math.floor(Math.random() * 5),
-            last_scan: "15h ago"
+        // 3. Sync to Firestore & Merge with Scan Data
+        console.log(`Syncing ${allRepos.length} repositories to Firestore`);
+        const syncedRepos = await Promise.all(allRepos.map(async (repo: any) => {
+            const repoId = repo.id.toString();
+            let scanData = {
+                issues: { critical: 0, high: 0, medium: 0, low: 0 },
+                ignored: 0,
+                last_scan: "Never"
+            };
+
+            if (adminDb && (session.user as any)?.id) {
+                // Use nested collection: users/{userId}/repositories/{repoId}
+                const userId = (session.user as any).id;
+                const userRepoRef = adminDb
+                    .collection("users")
+                    .doc(userId)
+                    .collection("repositories")
+                    .doc(repoId);
+
+                const repoDoc = await userRepoRef.get();
+
+                if (repoDoc.exists) {
+                    const data = repoDoc.data();
+                    if (data?.scanSummary) {
+                        scanData = data.scanSummary;
+                    }
+                }
+
+                // Update metadata for Gen AI context
+                await userRepoRef.set({
+                    name: repo.name,
+                    full_name: repo.full_name,
+                    description: repo.description,
+                    html_url: repo.html_url,
+                    language: repo.language,
+                    default_branch: repo.default_branch,
+                    clone_url: repo.clone_url,
+                    owner: {
+                        login: repo.owner.login,
+                        avatar_url: repo.owner.avatar_url,
+                        id: repo.owner.id
+                    },
+                    updated_at: repo.updated_at,
+                    lastSyncedAt: new Date().toISOString(),
+                    // Preserve existing scan data if any
+                    scanSummary: repoDoc.exists ? (repoDoc.data()?.scanSummary || scanData) : scanData
+                }, { merge: true });
+            } else {
+                console.warn("Skipping repo sync: adminDb missing or user ID not found in session");
+            }
+
+            return {
+                ...repo,
+                ...scanData
+            };
         }));
 
-        return NextResponse.json({ repositories: formattedRepos });
+        console.log("Repository sync completed");
+        return NextResponse.json({ repositories: syncedRepos });
 
     } catch (error) {
         console.error("Error fetching repositories:", error);

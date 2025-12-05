@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Github, Users, Layout, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 export default function WorkspaceSelection() {
     return (
@@ -10,11 +11,12 @@ export default function WorkspaceSelection() {
 
             {/* Logout Button */}
             <div className="absolute top-6 right-6">
-                <Link href="/login">
-                    <button className="px-4 py-2 bg-[#1a1f36] hover:bg-[#252b48] text-white/70 hover:text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
-                        <span>Logout</span>
-                    </button>
-                </Link>
+                <button
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    className="px-4 py-2 bg-[#1a1f36] hover:bg-[#252b48] text-white/70 hover:text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+                >
+                    <span>Logout</span>
+                </button>
             </div>
 
             <div className="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">

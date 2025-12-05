@@ -9,6 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
     "lucide-react": "^0.454.0",
     "next": "^15.0.3",
     "next-auth": "^4.24.13",
