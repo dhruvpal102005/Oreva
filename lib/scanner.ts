@@ -3,6 +3,15 @@ interface ScanResult {
     summary: string;
 }
 
+interface SubIssue {
+    id: string;
+    cve: string;
+    severity: "Critical" | "High" | "Medium" | "Low";
+    package: string;
+    version: string;
+    analysis: string;
+}
+
 interface Finding {
     type: string;
     name: string;
@@ -11,6 +20,8 @@ interface Finding {
     description: string;
     fix: string;
     fixTime: string;
+    detailedAnalysis?: string;
+    subIssues?: SubIssue[];
 }
 
 export class ScannerService {
@@ -114,16 +125,27 @@ export class ScannerService {
 
         Output Format: JSON object with "findings" (array) and "summary" (string).
         Each finding should have:
-        - type: string (e.g., "SQL Injection", "XSS")
+        - type: string (e.g., "SQL Injection", "XSS", "Dependency Vulnerability")
         - name: string (short title, max 50 characters)
         - severity: "Critical" | "High" | "Medium" | "Low"
         - location: string (file path)
         - description: string (ONE LINE ONLY, max 80 characters, concise explanation)
-        - fix: string (brief fix suggestion, max 100 characters)
+        - fix: string (brief fix suggestion, max 150 characters)
         - fixTime: string (estimated time, e.g., "30 min", "1 hr", "2 hr")
+        - detailedAnalysis: string (optional, detailed explanation of the vulnerability)
+        - subIssues: array (optional, for dependency vulnerabilities, include CVE details)
+          Each subIssue should have:
+          - id: string (unique identifier)
+          - cve: string (CVE ID, e.g., "CVE-2025-12345")
+          - severity: "Critical" | "High" | "Medium" | "Low"
+          - package: string (package name, e.g., "frontend-zapier")
+          - version: string (version range, e.g., "15.3.4 < 15.4.6")
+          - analysis: string (brief description)
 
-        IMPORTANT: Keep descriptions very short and concise (one line, max 80 characters).
-        Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.
+        IMPORTANT: 
+        - Keep descriptions very short and concise (one line, max 80 characters).
+        - For dependency vulnerabilities (like Next.js, React, etc.), include subIssues with CVE information.
+        - Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.
         `;
     }
 

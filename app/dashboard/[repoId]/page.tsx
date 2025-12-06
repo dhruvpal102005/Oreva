@@ -17,6 +17,16 @@ import {
     Settings,
     MoreVertical
 } from "lucide-react";
+import IssueDetailModal from "@/components/IssueDetailModal";
+
+interface SubIssue {
+    id: string;
+    cve: string;
+    severity: "Critical" | "High" | "Medium" | "Low";
+    package: string;
+    version: string;
+    analysis: string;
+}
 
 interface Finding {
     type: string;
@@ -26,6 +36,8 @@ interface Finding {
     description: string;
     fix: string;
     fixTime: string;
+    detailedAnalysis?: string;
+    subIssues?: SubIssue[];
 }
 
 export default function RepositoryDetails() {
@@ -41,6 +53,8 @@ export default function RepositoryDetails() {
     const [scanSummary, setScanSummary] = useState("");
     const [lastScanTime, setLastScanTime] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedFindingIndex, setSelectedFindingIndex] = useState<number | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Load latest scan on page load
     useEffect(() => {
@@ -111,6 +125,28 @@ export default function RepositoryDetails() {
             case "critical": return <AlertTriangle className="w-4 h-4" />;
             case "high": return <AlertTriangle className="w-4 h-4" />;
             default: return <Shield className="w-4 h-4" />;
+        }
+    };
+
+    const handleIssueClick = (index: number) => {
+        setSelectedFindingIndex(index);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedFindingIndex(null);
+    };
+
+    const handleNextIssue = () => {
+        if (selectedFindingIndex !== null && selectedFindingIndex < findings.length - 1) {
+            setSelectedFindingIndex(selectedFindingIndex + 1);
+        }
+    };
+
+    const handlePreviousIssue = () => {
+        if (selectedFindingIndex !== null && selectedFindingIndex > 0) {
+            setSelectedFindingIndex(selectedFindingIndex - 1);
         }
     };
 
@@ -251,7 +287,11 @@ export default function RepositoryDetails() {
                                     </tr>
                                 ) : (
                                     findings.map((finding, index) => (
-                                        <tr key={index} className="hover:bg-gray-50 transition-colors group">
+                                        <tr
+                                            key={index}
+                                            onClick={() => handleIssueClick(index)}
+                                            className="hover:bg-gray-50 transition-colors group cursor-pointer"
+                                        >
                                             <td className="p-4">
                                                 <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-500">
                                                     <FileCode className="w-4 h-4" />
@@ -293,6 +333,17 @@ export default function RepositoryDetails() {
                     </div>
                 </div>
             </div>
+
+            {/* Issue Detail Modal */}
+            <IssueDetailModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                finding={selectedFindingIndex !== null ? findings[selectedFindingIndex] : null}
+                onNext={handleNextIssue}
+                onPrevious={handlePreviousIssue}
+                hasNext={selectedFindingIndex !== null && selectedFindingIndex < findings.length - 1}
+                hasPrevious={selectedFindingIndex !== null && selectedFindingIndex > 0}
+            />
         </div>
     );
 }
