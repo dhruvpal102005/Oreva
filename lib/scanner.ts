@@ -35,50 +35,41 @@ export class ScannerService {
     }
 
     async scanRepository(accessToken: string, owner: string, repo: string): Promise<ScanResult> {
+        console.log(`🚀 Triggering AWS Lambda Scanner for ${owner}/${repo}...`);
+
         try {
-            // 1. Fetch file list
-            const files = await this.fetchRepoFiles(accessToken, owner, repo);
+            const LAMBDA_URL = "https://rxeg3hk6ptuxicz6k3ljniscpi0ulqsh.lambda-url.us-east-1.on.aws/";
 
-            // 2. Filter for code files
-            const codeFiles = files.filter(f => /\.(js|ts|tsx|jsx|py|go|rs|java|sol)$/.test(f.path));
+            console.log("DEBUG: Calling Lambda with:", {
+                tokenLength: accessToken?.length,
+                owner,
+                repo
+            });
 
-            // 3. Fetch content for relevant files (limit to top 10 for demo/performance)
-            const fileContents = await Promise.all(
-                codeFiles.slice(0, 10).map(f => this.fetchFileContent(accessToken, owner, repo, f.path))
-            );
-
-            // 4. Construct Prompt
-            const prompt = this.constructPrompt(fileContents);
-
-            // 5. Analyze with Gemini using REST API (v1 endpoint)
-            const apiKey = process.env.GOOGLE_API_KEY;
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: prompt }]
-                        }]
-                    })
-                }
-            );
+            const response = await fetch(LAMBDA_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    token: accessToken,
+                    apiKey: process.env.GOOGLE_API_KEY, // Pass existing key to Lambda
+                    owner,
+                    repo
+                })
+            });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error("Gemini API error:", errorText);
-                throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+                throw new Error(`Lambda Scan Failed: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const data = await response.json();
-            const text = data.candidates[0].content.parts[0].text;
-
-            // 6. Parse Response
-            return this.parseResponse(text);
+            console.log("✅ AWS Lambda Scan Complete");
+            return data;
 
         } catch (error) {
-            console.error("Scan failed:", error);
+            console.error("AWS Scanner Error:", error);
             throw error;
         }
     }

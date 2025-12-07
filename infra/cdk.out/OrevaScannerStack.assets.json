@@ -1,0 +1,34 @@
+{
+  "version": "36.0.0",
+  "files": {
+    "51f69508a370672b1243220418dbced5528e070f2a8ea6879bd4977d1274296f": {
+      "source": {
+        "path": "asset.51f69508a370672b1243220418dbced5528e070f2a8ea6879bd4977d1274296f",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "209578578070-us-east-1": {
+          "bucketName": "cdk-hnb659fds-assets-209578578070-us-east-1",
+          "objectKey": "51f69508a370672b1243220418dbced5528e070f2a8ea6879bd4977d1274296f.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::209578578070:role/cdk-hnb659fds-file-publishing-role-209578578070-us-east-1"
+        }
+      }
+    },
+    "abe1eece43b2337d63ac6eacff216e5f4bfb7a5943bd02aa1bc893b4da8d1c37": {
+      "source": {
+        "path": "OrevaScannerStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "209578578070-us-east-1": {
+          "bucketName": "cdk-hnb659fds-assets-209578578070-us-east-1",
+          "objectKey": "abe1eece43b2337d63ac6eacff216e5f4bfb7a5943bd02aa1bc893b4da8d1c37.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::209578578070:role/cdk-hnb659fds-file-publishing-role-209578578070-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

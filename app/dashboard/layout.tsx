@@ -67,7 +67,7 @@ export default function DashboardLayout({
 
                     {/* AutoFix */}
                     <div>
-                        <Link href="#" className="flex items-center space-x-3 px-2 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors">
+                        <Link href="/dashboard/autofix" className="flex items-center space-x-3 px-2 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors">
                             <Zap className="w-5 h-5" />
                             <span className="font-medium">AutoFix</span>
                         </Link>
