@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
     Box,
@@ -28,6 +29,7 @@ export default function DashboardLayout({
 }) {
     // Prefetch all data immediately on mount
     const { isLoading } = usePrefetchData();
+    const pathname = usePathname();
 
     useEffect(() => {
         console.log('Dashboard data prefetching:', isLoading ? 'loading...' : 'complete');
@@ -37,13 +39,13 @@ export default function DashboardLayout({
             {/* Sidebar */}
             <aside className="w-64 bg-[#0a0e27] text-white flex flex-col fixed h-full z-10">
                 {/* Logo */}
-                <div className="p-6 flex items-center space-x-2">
+                <div className="p-6 flex justify-center items-center">
                     <Image
                         src="/logo.png"
                         alt="Oreva Logo"
-                        width={100}
-                        height={32}
-                        className="h-8 w-auto object-contain invert"
+                        width={120}
+                        height={40}
+                        className="h-10 w-auto object-contain invert"
                         priority
                     />
                 </div>
@@ -57,90 +59,76 @@ export default function DashboardLayout({
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto px-4 space-y-6">
+                <nav className="flex-1 overflow-y-auto px-4 space-y-6 scrollbar-hide">
 
                     {/* Feed */}
                     <div>
-                        <Link href="/dashboard/feed" className="flex items-center space-x-3 px-2 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <Inbox className="w-5 h-5" />
+                        <Link href="/dashboard/feed" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${pathname.includes('/feed') ? 'bg-[#6366f1] text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                            <Inbox className={`w-5 h-5 transition-colors ${pathname.includes('/feed') ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
                             <span className="font-medium">Feed</span>
                         </Link>
-                        <div className="space-y-1 mt-2">
-                            <Link href="/dashboard/feed" className="flex items-center justify-between px-2 py-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md text-sm transition-colors">
+                        <div className="space-y-1 mt-2 pl-2 border-l border-white/5 ml-2">
+                            <Link href="/dashboard/feed" className="flex items-center justify-between px-3 py-1.5 text-gray-500 hover:text-gray-300 hover:bg-white/5 rounded-md text-sm transition-all duration-200">
                                 <span>Snoozed</span>
                             </Link>
-                            <Link href="/dashboard/feed" className="flex items-center justify-between px-2 py-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md text-sm transition-colors">
+                            <Link href="/dashboard/feed" className="flex items-center justify-between px-3 py-1.5 text-gray-500 hover:text-gray-300 hover:bg-white/5 rounded-md text-sm transition-all duration-200">
                                 <span>Ignored</span>
-                                <span className="bg-[#6366f1] text-white text-[10px] px-1.5 py-0.5 rounded-full">46</span>
+                                <span className="bg-[#6366f1]/20 text-[#6366f1] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#6366f1]/30">46</span>
                             </Link>
-                            <Link href="/dashboard/feed" className="flex items-center justify-between px-2 py-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md text-sm transition-colors">
+                            <Link href="/dashboard/feed" className="flex items-center justify-between px-3 py-1.5 text-gray-500 hover:text-gray-300 hover:bg-white/5 rounded-md text-sm transition-all duration-200">
                                 <span>Solved</span>
-                                <span className="bg-[#6366f1] text-white text-[10px] px-1.5 py-0.5 rounded-full">2</span>
+                                <span className="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30">2</span>
                             </Link>
                         </div>
                     </div>
 
                     {/* AutoFix */}
                     <div>
-                        <Link href="/dashboard/autofix" className="flex items-center space-x-3 px-2 py-2 text-gray-300 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <Zap className="w-5 h-5" />
+                        <Link href="/dashboard/autofix" className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${pathname.includes('/autofix') ? 'bg-[#6366f1] text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                            <Zap className={`w-5 h-5 transition-colors ${pathname.includes('/autofix') ? 'text-white' : 'text-yellow-500 group-hover:text-yellow-400'}`} />
                             <span className="font-medium">AutoFix</span>
                         </Link>
                     </div>
 
                     {/* Main Nav */}
                     <div className="space-y-1">
-                        <Link href="/dashboard" className="flex items-center justify-between px-2 py-2 bg-white/10 text-white rounded-md transition-colors">
+                        <Link href="/dashboard" className={`flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group ${pathname === '/dashboard' ? 'bg-[#6366f1] text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                             <div className="flex items-center space-x-3">
-                                <LayoutDashboard className="w-5 h-5" />
+                                <LayoutDashboard className={`w-5 h-5 transition-colors ${pathname === '/dashboard' ? 'text-white' : 'text-gray-500 group-hover:text-white'}`} />
                                 <span className="font-medium">Repositories</span>
                             </div>
-                            <span className="text-xs text-gray-400">35</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${pathname === '/dashboard' ? 'bg-white/20 text-white' : 'bg-gray-800 text-gray-500 group-hover:bg-gray-700 group-hover:text-gray-300'}`}>35</span>
                         </Link>
-                        <Link href="#" className="flex items-center justify-between px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <div className="flex items-center space-x-3">
-                                <Box className="w-5 h-5" />
-                                <span className="font-medium">Containers</span>
-                            </div>
-                            <span className="text-xs text-gray-400">0</span>
-                        </Link>
-                        <Link href="#" className="flex items-center justify-between px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <div className="flex items-center space-x-3">
-                                <Cloud className="w-5 h-5" />
-                                <span className="font-medium">Clouds</span>
-                            </div>
-                            <span className="text-xs text-gray-400">0</span>
-                        </Link>
-                        <Link href="#" className="flex items-center justify-between px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <div className="flex items-center space-x-3">
-                                <Globe className="w-5 h-5" />
-                                <span className="font-medium">Domains & APIs</span>
-                            </div>
-                            <span className="text-xs text-gray-400">0</span>
-                        </Link>
-                        <Link href="#" className="flex items-center justify-between px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <div className="flex items-center space-x-3">
-                                <Shield className="w-5 h-5" />
-                                <span className="font-medium">Zen Firewall</span>
-                            </div>
-                            <span className="text-xs text-gray-400">0</span>
-                        </Link>
+
+                        {[
+                            { name: 'Containers', icon: Box, count: 0 },
+                            { name: 'Clouds', icon: Cloud, count: 0 },
+                            { name: 'Domains & APIs', icon: Globe, count: 0 },
+                            { name: 'Zen Firewall', icon: Shield, count: 0 }
+                        ].map((item) => (
+                            <Link key={item.name} href="#" className="flex items-center justify-between px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-200 group">
+                                <div className="flex items-center space-x-3">
+                                    <item.icon className="w-5 h-5 text-gray-500 group-hover:text-gray-300 transition-colors" />
+                                    <span className="font-medium">{item.name}</span>
+                                </div>
+                                <span className="text-xs bg-gray-800 text-gray-600 px-2 py-0.5 rounded-full group-hover:bg-gray-700 group-hover:text-gray-400 transition-colors">{item.count}</span>
+                            </Link>
+                        ))}
                     </div>
 
                     {/* Other Sections */}
-                    <div className="space-y-1">
-                        <Link href="#" className="flex items-center space-x-3 px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <Code className="w-5 h-5" />
-                            <span className="font-medium">Code Quality</span>
-                        </Link>
-                        <Link href="#" className="flex items-center space-x-3 px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <Shield className="w-5 h-5" />
-                            <span className="font-medium">Pentests</span>
-                        </Link>
-                        <Link href="#" className="flex items-center space-x-3 px-2 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            <Settings className="w-5 h-5" />
-                            <span className="font-medium">Integrations</span>
-                        </Link>
+                    <div className="space-y-1 pt-4 border-t border-white/5">
+                        <div className="px-3 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Settings</div>
+                        {[
+                            { name: 'Code Quality', icon: Code },
+                            { name: 'Pentests', icon: Shield },
+                            { name: 'Integrations', icon: Settings }
+                        ].map((item) => (
+                            <Link key={item.name} href="#" className="flex items-center space-x-3 px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all duration-200 group">
+                                <item.icon className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" />
+                                <span className="font-medium">{item.name}</span>
+                            </Link>
+                        ))}
                     </div>
 
                 </nav>

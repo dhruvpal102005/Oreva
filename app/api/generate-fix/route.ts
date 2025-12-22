@@ -214,6 +214,16 @@ Generate a complete security fix that may require changes across multiple files.
 
 // Fallback to pattern-based fix generation
 function fallbackToPatternFix(vulnerabilityName: string, code: string, filePath: string): NextResponse {
+    // For dependency files (JSON) or dependency issues, we cannot effectively generate a pattern-based fix
+    // and appending comments breaks the JSON format.
+    if (filePath.endsWith('.json') || vulnerabilityName.toLowerCase().includes('dependency')) {
+        return NextResponse.json({
+            success: false,
+            error: "An LLM (Gemini API Key) is required to generate fixes for dependency issues.",
+            usedLLM: false
+        }, { status: 422 }); // Unprocessable Entity
+    }
+
     const fix = FixGenerator.generateFix(vulnerabilityName, code);
 
     // Extract just the file name from the full path

@@ -111,11 +111,63 @@ export default function AutoFixPage() {
     const [ignoredIssues, setIgnoredIssues] = useState<Set<string>>(new Set());
     const [issuesToIgnore, setIssuesToIgnore] = useState<any[]>([]);
 
+    // Dependency Fix State
+    const [showDependencyModal, setShowDependencyModal] = useState(false);
+    const [selectedDependencyIssue, setSelectedDependencyIssue] = useState<any>(null);
+    const [updateStrategy, setUpdateStrategy] = useState<'top-level' | 'direct'>('top-level');
+
     // Create PR State
     const [creatingPR, setCreatingPR] = useState(false);
     const [prCreated, setPrCreated] = useState<{ url: string; number: number } | null>(null);
+    const [prCreatedIssues, setPrCreatedIssues] = useState<Set<string>>(new Set());
 
     const handleOpenFix = async (issue: any) => {
+        if (activeTab === "Dependencies") {
+            // For dependency tab, we use a simpler modal but use similar fix logic
+            setSelectedDependencyIssue(issue);
+            setShowDependencyModal(true);
+
+            // Also load file content for the dependency file (e.g., package.json)
+            setFileContent(null);
+            setLlmGeneratedFix(null);
+
+            // We can pre-fetch the file content here essentially reusing SAST logic
+            // but we don't need to generate the fix immediately if we want to confirm strategy first.
+            // For simplicity, let's load the file immediately.
+            setLoadingFile(true);
+
+            const filePath = issue.filePath.split('|')[1]?.trim() || issue.filePath;
+            const encodedPath = encodeURIComponent(filePath);
+
+            try {
+                // Remove line numbers if any (e.g. :12) for reading
+                let cleanPath = filePath.replace(/:\d+$/, '');
+
+                // Handle generic "Project Dependencies" path by defaulting to package.json
+                if (cleanPath.trim() === 'Project Dependencies' || cleanPath.trim() === 'project dependencies') {
+                    cleanPath = 'package.json';
+                }
+
+                const res = await fetch("/api/read-file", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filePath: cleanPath })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    setFileContent(data.content);
+                } else {
+                    setFileError(data.error);
+                }
+            } catch (err) {
+                setFileError("Failed to read file");
+            } finally {
+                setLoadingFile(false);
+            }
+            return;
+        }
+
         setSelectedIssue(issue);
         setShowFixModal(true);
         setFileContent(null);
@@ -245,6 +297,119 @@ export default function AutoFixPage() {
 
     // Handle creating PR
     const handleCreatePR = async () => {
+        // Handle Dependency PRs
+        if (showDependencyModal && selectedDependencyIssue && fileContent) {
+            setCreatingPR(true);
+            setPrCreated(null);
+
+            try {
+                // For dependencies, we first need to generate the fix (the updated manifest file)
+                // We'll ask the LLM to update the version based on the issue description.
+                const prompt = `
+I have a dependency vulnerability in my ${selectedDependencyIssue.filePath.split('/').pop()} file.
+Issue: ${selectedDependencyIssue.name}
+Description: ${selectedDependencyIssue.description}
+Version Upgrade: ${selectedDependencyIssue.versionUpgrade ? `From ${selectedDependencyIssue.versionUpgrade.from} to ${selectedDependencyIssue.versionUpgrade.to}` : 'Update to latest secure version'}
+
+Here is the current file content:
+\`\`\`
+${fileContent}
+\`\`\`
+
+Please provide the FULL content of the file with the version updated. Do not output anything else, just the code.
+`;
+
+                // Call LLM generation
+                // We can reuse the existing endpoint or a simplified one.
+                // Let's use the standard generate-fix but we need to mock the verification report structure it expects?
+                // Actually, let's just use the /api/generate-fix logic but pass a custom prompt if possible, OR
+                // since /api/generate-fix is strictly typed for the FixGenerator, maybe we can fake it.
+
+                // Better: Use a simple completion via a new helper or reuse the existing one.
+                // Since I cannot easily change the backend on the fly to accept raw prompts without refactoring,
+                // I will construct a fake "VerificationReport" object that mimics the request format for /api/generate-fix
+
+                const response = await fetch('/api/generate-fix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vulnerabilityName: selectedDependencyIssue.name,
+                        vulnerabilityDescription: selectedDependencyIssue.description,
+                        severity: selectedDependencyIssue.severity || "Medium",
+                        filePath: selectedDependencyIssue.filePath.split('|')[1]?.trim() || selectedDependencyIssue.filePath,
+                        fileContent: fileContent,
+                        lineNumber: 1
+                    })
+                });
+
+                const fixData = await response.json();
+                if (!fixData.success || !fixData.files) {
+                    throw new Error(fixData.error || 'Failed to generate dependency fix');
+                }
+
+                const firstChange = fixData.files[0]?.changes[0];
+                if (!firstChange) throw new Error('No changes generated');
+
+                // For dependencies, often the LLM might return the whole file as "newCode" if we passed it as snippet.
+                // Let's rely on the fix generator's diff logic.
+
+                // Wait, if I use the existing generate-fix, it returns a diff (oldCode -> newCode).
+                // I can apply that diff locally like I did for SAST issues!
+
+                const fixedLines = fileContent.split('\n');
+                // Simple replace if it's a small chunk
+                // But dependencies might be just changing a version number "1.2.3" -> "1.2.4".
+                // The SAST logic uses line numbers. `generate-fix` output includes line numbers.
+                // So I can reuse the exact same patching logic!
+
+                // Let's reuse the patching logic block below by setting generic variables.
+                // But I need to define them first.
+                // Refactoring to separate function is cleaner but for now I'll duplicate the patching part 
+                // because I need to generate the fix first.
+
+                const targetLineIndex = firstChange.lineNumber - 1;
+                const linesToRemove = firstChange.oldCode.split('\n').length;
+                const fixedCodeLines = firstChange.newCode.split('\n');
+
+                const patchedLines = [...fileContent.split('\n')];
+                patchedLines.splice(targetLineIndex, linesToRemove, ...fixedCodeLines);
+                const fullFileContent = patchedLines.join('\n');
+
+                const prRes = await fetch('/api/create-pr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        repoFullName: selectedDependencyIssue.repositoryFullName,
+                        filePath: (() => {
+                            const rawPath = (selectedDependencyIssue.filePath || '').split('|')[1]?.trim() || selectedDependencyIssue.filePath;
+                            return (!rawPath || rawPath.includes('Project Dependencies')) ? 'package.json' : rawPath;
+                        })(),
+                        originalCode: firstChange.oldCode,
+                        fixedCode: firstChange.newCode,
+                        issueTitle: `Fix dependency: ${selectedDependencyIssue.name}`,
+                        issueDescription: selectedDependencyIssue.description,
+                        fullFileContent: fullFileContent
+                    })
+                });
+
+                const data = await prRes.json();
+                if (!data.success) throw new Error(data.error);
+
+                console.log('✅ PR created successfully:', data.prUrl);
+                setPrCreated({ url: data.prUrl, number: data.prNumber });
+                setPrCreatedIssues(prev => new Set(prev).add(selectedDependencyIssue.id));
+                alert(`✅ Pull Request #${data.prNumber} created successfully!\n\nView it at: ${data.prUrl}`);
+                setShowDependencyModal(false);
+
+            } catch (error: any) {
+                console.error('❌ Error creating dependency PR:', error);
+                alert(`Failed to create PR: ${error.message}`);
+            } finally {
+                setCreatingPR(false);
+            }
+            return;
+        }
+
         if (!selectedIssue || !llmGeneratedFix || !fileContent) {
             console.error('Missing required data for PR creation');
             return;
@@ -308,8 +473,12 @@ export default function AutoFixPage() {
             console.log('✅ PR created successfully:', data.prUrl);
             setPrCreated({ url: data.prUrl, number: data.prNumber });
 
-            // Show success message
+            // Add issue to processed set to hide it
+            setPrCreatedIssues(prev => new Set(prev).add(selectedIssue.id));
+
+            // Show success message and close modal
             alert(`✅ Pull Request #${data.prNumber} created successfully!\n\nView it at: ${data.prUrl}`);
+            setShowFixModal(false);
 
         } catch (error: any) {
             console.error('❌ Error creating PR:', error);
@@ -394,6 +563,8 @@ export default function AutoFixPage() {
     };
 
     // Helper to group issues by name for SAST/IaC
+    // Helper to group issues by proper logic
+    // Refactored to group by Repository instead of common vulnerability
     const getGroupedFindings = (): GroupedVulnerability[] => {
         const currentFindings = getCurrentFindings();
         if (activeTab === "Dependencies") return [];
@@ -407,23 +578,25 @@ export default function AutoFixPage() {
                     return;
                 }
 
-                if (!grouped[issue.name]) {
-                    grouped[issue.name] = {
-                        name: issue.name,
-                        description: issue.description,
-                        confidence: "High", // Mocked for now as API doesn't return it
+                // Group by Repository
+                // Fallback to extraction from path if fullName is missing (e.g. "pf > public/...")
+                const repoName = issue.repositoryFullName || (fileGroup.path.includes(' > ') ? fileGroup.path.split(' > ')[0] : 'Unknown Repository');
+
+                if (!grouped[repoName]) {
+                    // Initialize the group container for this Repository
+                    grouped[repoName] = {
+                        name: repoName,
+                        description: `Security issues found in ${repoName}`,
+                        confidence: "High", // Aggregate or N/A
                         issues: []
                     };
                 }
 
-                // Parse line range from file path if possible (e.g. "file.py:20")
+                // Parse path for display
+                // If path includes repo prefix "Repo > Path", clean it for display inside the group
                 let cleanPath = fileGroup.path;
 
-                // Try to extract line info from description or path if available
-                // For now, we'll try to guess or defualt.
-                // In a real scenario, the API should return line numbers.
-
-                grouped[issue.name].issues.push({
+                grouped[repoName].issues.push({
                     ...issue,
                     filePath: cleanPath,
                     lineRange: issue.fix ? "Line 12" : "Line 1" // Mocking line numbers for demo
@@ -431,20 +604,25 @@ export default function AutoFixPage() {
             });
         });
 
+        // Update description with count
+        Object.values(grouped).forEach(g => {
+            g.description = `${g.issues.length} issue${g.issues.length === 1 ? '' : 's'} detected in this repository`;
+        });
+
         return Object.values(grouped);
     };
 
-    // Filter findings by search query and exclude ignored issues
+    // Filter findings by search query and exclude ignored issues or PR-created issues
     const filteredFindings = getCurrentFindings().filter(group =>
         group.issues.some(issue =>
-            !ignoredIssues.has(issue.id) && (
+            !ignoredIssues.has(issue.id) && !prCreatedIssues.has(issue.id) && (
                 issue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 issue.description.toLowerCase().includes(searchQuery.toLowerCase())
             )
         )
     ).map(group => ({
         ...group,
-        issues: group.issues.filter(issue => !ignoredIssues.has(issue.id))
+        issues: group.issues.filter(issue => !ignoredIssues.has(issue.id) && !prCreatedIssues.has(issue.id))
     }));
 
     // Helper to generate dynamic diff with real security fixes using utility class
@@ -894,7 +1072,11 @@ export default function AutoFixPage() {
 
                                     {/* Table Rows - All Issues */}
                                     {allIssues.map((issue, idx) => (
-                                        <div key={`${issue.id}-${idx}`} className="grid grid-cols-12 px-6 py-4 items-center hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-100">
+                                        <div
+                                            key={`${issue.id}-${idx}`}
+                                            onClick={() => handleOpenFix(issue)}
+                                            className="grid grid-cols-12 px-6 py-4 items-center hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-100 cursor-pointer"
+                                        >
                                             <div className="col-span-1 flex items-center justify-center">
                                                 <input type="checkbox" className="rounded border-gray-300 text-[#6366f1] focus:ring-[#6366f1]" />
                                             </div>
@@ -1285,6 +1467,135 @@ export default function AutoFixPage() {
                     </div>
                 </div>
             )}
-        </div>
+
+            {/* Dependency Autofix Modal */}
+            {
+                showDependencyModal && selectedDependencyIssue && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div
+                            className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm transition-opacity"
+                            onClick={() => setShowDependencyModal(false)}
+                        />
+
+                        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                            {/* Modal Header */}
+                            <div className="px-8 py-6 flex items-start justify-between border-b border-gray-100">
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-900">
+                                        Create AutoFix PR for {selectedDependencyIssue.name}
+                                    </h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Below you can find the different ways that Oreva can automatically update dependencies.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowDependencyModal(false)}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-8 space-y-6">
+                                {/* Option 1: Top Level */}
+                                <label className={`relative flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${updateStrategy === 'top-level'
+                                    ? 'border-[#6366f1] bg-indigo-50/30'
+                                    : 'border-gray-100 hover:border-gray-200'
+                                    }`}>
+                                    <div className="flex-shrink-0 mt-1">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${updateStrategy === 'top-level' ? 'bg-[#6366f1] text-white' : 'bg-gray-100 text-gray-500'
+                                            }`}>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div className="ml-4 flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="block text-sm font-semibold text-gray-900">Update Top-Level Dependencies</span>
+                                            <input
+                                                type="radio"
+                                                name="updateStrategy"
+                                                value="top-level"
+                                                checked={updateStrategy === 'top-level'}
+                                                onChange={() => setUpdateStrategy('top-level')}
+                                                className="h-5 w-5 text-[#6366f1] focus:ring-[#6366f1] border-gray-300"
+                                            />
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            Oreva identifies and upgrades the top-level dependencies responsible for introducing the vulnerability.
+                                        </p>
+                                    </div>
+                                </label>
+
+                                {/* Option 2: Direct */}
+                                <label className={`relative flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${updateStrategy === 'direct'
+                                    ? 'border-[#6366f1] bg-indigo-50/30'
+                                    : 'border-gray-100 hover:border-gray-200'
+                                    }`}>
+                                    <div className="flex-shrink-0 mt-1">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${updateStrategy === 'direct' ? 'bg-[#6366f1] text-white' : 'bg-gray-100 text-gray-500'
+                                            }`}>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div className="ml-4 flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <span className="block text-sm font-semibold text-gray-900">Update Dependencies</span>
+                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                    {selectedDependencyIssue.cve ? '1 CVE fix' : 'Fix available'}
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="radio"
+                                                name="updateStrategy"
+                                                value="direct"
+                                                checked={updateStrategy === 'direct'}
+                                                onChange={() => setUpdateStrategy('direct')}
+                                                className="h-5 w-5 text-[#6366f1] focus:ring-[#6366f1] border-gray-300"
+                                            />
+                                        </div>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            1 dependency will be updated. {selectedDependencyIssue.versionUpgrade ? `(${selectedDependencyIssue.versionUpgrade.type})` : ''}
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end space-x-3">
+                                <button
+                                    onClick={() => setShowDependencyModal(false)}
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 bg-white shadow-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreatePR}
+                                    disabled={creatingPR || !fileContent}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] rounded-lg transition-colors shadow-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {creatingPR ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Creating PR...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Zap className="w-4 h-4 mr-2" />
+                                            Create PR
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 }
