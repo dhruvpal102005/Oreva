@@ -87,14 +87,28 @@ export default function AutoFixPage() {
     const [fileContent, setFileContent] = useState<string | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
     const [loadingFile, setLoadingFile] = useState(false);
-    // LLM Fix State
+    // LLM Fix State - Updated for multi-file support
     const [llmGeneratedFix, setLlmGeneratedFix] = useState<{
-        originalCode: string;
-        fixedCode: string;
+        files: Array<{
+            path: string;
+            changes: Array<{
+                lineNumber: number;
+                oldCode: string;
+                newCode: string;
+            }>;
+        }>;
         explanation: string;
         usedLLM: boolean;
     } | null>(null);
     const [generatingFix, setGeneratingFix] = useState(false);
+    const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+
+    // Ignore Issue State
+    const [showIgnoreModal, setShowIgnoreModal] = useState(false);
+    const [ignoreReason, setIgnoreReason] = useState('');
+    const [sendToAikido, setSendToAikido] = useState(false);
+    const [ignoredIssues, setIgnoredIssues] = useState<Set<string>>(new Set());
+    const [issuesToIgnore, setIssuesToIgnore] = useState<any[]>([]);
 
     const handleOpenFix = async (issue: any) => {
         setSelectedIssue(issue);
@@ -167,10 +181,15 @@ export default function AutoFixPage() {
                     })
                 });
 
+
                 if (fixRes.ok) {
                     const fixData = await fixRes.json();
                     if (fixData.success) {
                         setLlmGeneratedFix(fixData);
+                        // Expand the first file by default
+                        if (fixData.files && fixData.files.length > 0) {
+                            setExpandedFiles(new Set([fixData.files[0].path]));
+                        }
                         console.log(`✅ Fix generated using ${fixData.usedLLM ? 'LLM' : 'pattern-based'} approach`);
                     }
                 } else {
@@ -189,6 +208,36 @@ export default function AutoFixPage() {
         const fileName = issue.filePath?.split('/').pop() || 'file.ts';
         return MockCodeGenerator.generate(issue.name, fileName);
     };
+
+    // Handle opening ignore modal
+    const handleOpenIgnoreModal = (issue: any) => {
+        setIssuesToIgnore([issue]);
+        setShowIgnoreModal(true);
+        setIgnoreReason('');
+        setSendToAikido(false);
+    };
+
+    // Handle ignoring issues
+    const handleIgnoreIssues = () => {
+        // Add issues to ignored set
+        const newIgnored = new Set(ignoredIssues);
+        issuesToIgnore.forEach(issue => {
+            newIgnored.add(issue.id);
+        });
+        setIgnoredIssues(newIgnored);
+
+        // Log the action (you can send this to backend later)
+        console.log('Ignored issues:', issuesToIgnore.map(i => i.id));
+        console.log('Reason:', ignoreReason);
+        console.log('Send to Aikido:', sendToAikido);
+
+        // Close modal and reset
+        setShowIgnoreModal(false);
+        setIssuesToIgnore([]);
+        setIgnoreReason('');
+        setSendToAikido(false);
+    };
+
 
     useEffect(() => {
         fetchAutofixData();
@@ -303,13 +352,18 @@ export default function AutoFixPage() {
         return Object.values(grouped);
     };
 
-    // Filter findings by search query (Legacy for Dependencies)
+    // Filter findings by search query and exclude ignored issues
     const filteredFindings = getCurrentFindings().filter(group =>
         group.issues.some(issue =>
-            issue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            issue.description.toLowerCase().includes(searchQuery.toLowerCase())
+            !ignoredIssues.has(issue.id) && (
+                issue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                issue.description.toLowerCase().includes(searchQuery.toLowerCase())
+            )
         )
-    );
+    ).map(group => ({
+        ...group,
+        issues: group.issues.filter(issue => !ignoredIssues.has(issue.id))
+    }));
 
     // Helper to generate dynamic diff with real security fixes using utility class
     const generateSecurityFix = (lineContent: string, issueName: string): string => {
@@ -360,14 +414,20 @@ export default function AutoFixPage() {
             );
         }
 
-        const lines = fileContent.split('\n');
-        let targetLine = 1;
-        if (selectedIssue.lineRange) {
-            const match = selectedIssue.lineRange.match(/Line (\d+)/);
-            if (match) {
-                targetLine = parseInt(match[1]);
-            }
+        // Extract first file's data for backward compatibility
+        const firstFile = llmGeneratedFix.files[0];
+        const firstChange = firstFile?.changes[0];
+
+        if (!firstFile || !firstChange) {
+            return (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                    No fix data available
+                </div>
+            );
         }
+
+        const lines = fileContent.split('\n');
+        const targetLine = firstChange.lineNumber;
 
         // Find the actual vulnerable line by pattern matching
         const issueName = selectedIssue.name.toLowerCase();
@@ -420,18 +480,19 @@ export default function AutoFixPage() {
             }
         }
 
-        targetLine = Math.max(1, Math.min(actualVulnerableLine, lines.length));
-        const startLine = Math.max(1, targetLine - 3);
-        const endLine = Math.min(lines.length, targetLine + 3);
+
+        actualVulnerableLine = Math.max(1, Math.min(actualVulnerableLine, lines.length));
+        const startLine = Math.max(1, actualVulnerableLine - 3);
+        const endLine = Math.min(lines.length, actualVulnerableLine + 3);
 
         const diffLines = [];
 
         for (let i = startLine; i <= endLine; i++) {
             const lineContent = lines[i - 1];
 
-            if (i === targetLine) {
+            if (i === actualVulnerableLine) {
                 // Original Line (Red) - Use LLM's original code
-                const originalCode = llmGeneratedFix.originalCode;
+                const originalCode = firstChange.oldCode;
                 diffLines.push(
                     <div key={`del-${i}`} className="flex bg-red-50/50">
                         <div className="w-12 flex-shrink-0 text-right pr-3 py-1 text-red-300 select-none bg-red-50 border-r border-red-100">{i}</div>
@@ -444,11 +505,11 @@ export default function AutoFixPage() {
                 );
 
                 // Fixed Line (Green) - Use LLM-generated fix
-                const fixedContent = llmGeneratedFix.fixedCode;
+                const fixedContent = firstChange.newCode;
 
                 // Handle multi-line fixes
                 const fixedLines = fixedContent.split('\n');
-                fixedLines.forEach((fixLine, idx) => {
+                fixedLines.forEach((fixLine: string, idx: number) => {
                     diffLines.push(
                         <div key={`add-${i}-${idx}`} className="flex bg-green-50/50">
                             <div className="w-12 flex-shrink-0 text-right pr-3 py-1 text-gray-300 select-none bg-gray-50 border-r border-gray-100"></div>
@@ -970,24 +1031,19 @@ export default function AutoFixPage() {
                                             if (!llmGeneratedFix || !fileContent) return;
 
                                             try {
+                                                const firstFile = llmGeneratedFix.files[0];
+                                                const firstChange = firstFile?.changes[0];
+                                                if (!firstChange) return;
+
                                                 // Get the file lines
                                                 const lines = fileContent.split('\n');
 
                                                 // Find the vulnerable line index
-                                                let targetLineIndex = 0;
-                                                const issueName = selectedIssue.name.toLowerCase();
-
-                                                for (let i = 0; i < lines.length; i++) {
-                                                    const line = lines[i];
-                                                    if (line.includes(llmGeneratedFix.originalCode.trim())) {
-                                                        targetLineIndex = i;
-                                                        break;
-                                                    }
-                                                }
+                                                const targetLineIndex = firstChange.lineNumber - 1;
 
                                                 // Replace the vulnerable line with the fixed code
                                                 const fixedLines = [...lines];
-                                                const fixedCodeLines = llmGeneratedFix.fixedCode.split('\n');
+                                                const fixedCodeLines = firstChange.newCode.split('\n');
 
                                                 // Remove the old line and insert new lines
                                                 fixedLines.splice(targetLineIndex, 1, ...fixedCodeLines);
@@ -1034,7 +1090,16 @@ export default function AutoFixPage() {
                                     <ThumbsDown className="w-4 h-4" />
                                 </button>
                                 <div className="h-4 w-px bg-gray-300 mx-1"></div>
-                                <button className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors" title="Ignore this finding">
+                                <button
+                                    onClick={() => {
+                                        if (selectedIssue) {
+                                            handleOpenIgnoreModal(selectedIssue);
+                                            setShowFixModal(false);
+                                        }
+                                    }}
+                                    className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+                                    title="Ignore this finding"
+                                >
                                     <EyeOff className="w-4 h-4" />
                                 </button>
                             </div>
@@ -1055,6 +1120,72 @@ export default function AutoFixPage() {
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Ignore Issue Modal */}
+            {showIgnoreModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="fixed inset-0 bg-gray-900/30 backdrop-blur-sm transition-opacity"
+                        onClick={() => setShowIgnoreModal(false)}
+                    />
+
+                    <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
+                        {/* Modal Header */}
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                            <h2 className="text-lg font-semibold text-gray-900">Ignore issues...</h2>
+                            <button
+                                onClick={() => setShowIgnoreModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6">
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                                These issues will be ignored.
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-6">
+                                You can optionally record a reason to the activity log for this decision.
+                            </p>
+
+                            {/* Reason Textarea */}
+                            <textarea
+                                value={ignoreReason}
+                                onChange={(e) => setIgnoreReason(e.target.value)}
+                                placeholder="Reason (optional)"
+                                className="w-full px-4 py-3 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-500 resize-none text-sm"
+                                rows={5}
+                            />
+
+                            {/* Aikido Checkbox */}
+                            <div className="mt-4 flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="sendToAikido"
+                                    checked={sendToAikido}
+                                    onChange={(e) => setSendToAikido(e.target.checked)}
+                                    className="rounded border-gray-300 text-[#6366f1] focus:ring-[#6366f1] w-4 h-4"
+                                />
+                                <label htmlFor="sendToAikido" className="ml-2 text-sm text-gray-700">
+                                    Send to Aikido to flag as false positive
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end">
+                            <button
+                                onClick={handleIgnoreIssues}
+                                className="px-6 py-2 text-sm font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] rounded-lg transition-colors"
+                            >
+                                Ignore Issue
+                            </button>
                         </div>
                     </div>
                 </div>
