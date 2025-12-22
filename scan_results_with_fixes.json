@@ -1,0 +1,154 @@
+[
+  {
+    "type": "Insecure HTTP",
+    "name": "Insecure HTTP Usage",
+    "severity": "Low",
+    "location": "app\\dashboard\\page.tsx:177",
+    "description": "Using HTTP instead of HTTPS",
+    "fix": "Use HTTPS for all connections",
+    "fixTime": "15 min",
+    "detailedAnalysis": "Found in line 177",
+    "codeSnippet": "<svg className=\"animate-spin h-5 w-5\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24",
+    "fullLine": "                                <svg className=\"animate-spin h-5 w-5\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\">\r",
+    "confidence": "High",
+    "fixedCode": "                                <svg className=\"animate-spin h-5 w-5\" xmlns=\"https://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\">\r",
+    "diff": {
+      "original": "                                <svg className=\"animate-spin h-5 w-5\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\">\r",
+      "modified": "                                <svg className=\"animate-spin h-5 w-5\" xmlns=\"https://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\">\r",
+      "line": 177
+    }
+  },
+  {
+    "type": "Information Disclosure",
+    "name": "Sensitive Data Logging",
+    "severity": "Medium",
+    "location": "lib\\scanner.ts:36",
+    "description": "Logging sensitive information",
+    "fix": "Remove sensitive data from logs",
+    "fixTime": "15 min",
+    "detailedAnalysis": "Found in line 36",
+    "codeSnippet": "console.log(\"Initializing Gemini Scanner with API Key length:\", apiKey.length);",
+    "fullLine": "        console.log(\"Initializing Gemini Scanner with API Key length:\", apiKey.length);\r",
+    "confidence": "Medium",
+    "fixedCode": "        console.log(\"Initializing Gemini Scanner with API Key length:\", \"[REDACTED]\");\r",
+    "diff": {
+      "original": "        console.log(\"Initializing Gemini Scanner with API Key length:\", apiKey.length);\r",
+      "modified": "        console.log(\"Initializing Gemini Scanner with API Key length:\", \"[REDACTED]\");\r",
+      "line": 36
+    }
+  },
+  {
+    "type": "Hardcoded Secret",
+    "name": "Hardcoded API Key",
+    "severity": "Critical",
+    "location": "test-vulnerabilities.js:4",
+    "description": "API key found in source code",
+    "fix": "Move API key to environment variables",
+    "fixTime": "30 min",
+    "detailedAnalysis": "Found in line 4",
+    "codeSnippet": "const apiKey = \"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\";",
+    "fullLine": "const apiKey = \"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\";\r",
+    "confidence": "High",
+    "fixedCode": "const apiKey = process.env.GOOGLE_API_KEY;",
+    "diff": {
+      "original": "const apiKey = \"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\";\r",
+      "modified": "const apiKey = process.env.GOOGLE_API_KEY;",
+      "line": 4
+    }
+  },
+  {
+    "type": "Potential Secret",
+    "name": "Potential Hardcoded Secret",
+    "severity": "High",
+    "location": "test-vulnerabilities.js:4",
+    "description": "Variable with secret-like name",
+    "fix": "Verify and move to environment variables if needed",
+    "fixTime": "15 min",
+    "detailedAnalysis": "Found in line 4",
+    "codeSnippet": "const apiKey = \"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\";",
+    "fullLine": "const apiKey = \"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\";\r",
+    "confidence": "High",
+    "fixedCode": "const apiKey = process.env.GOOGLE_API_KEY;",
+    "diff": {
+      "original": "const apiKey = \"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\";\r",
+      "modified": "const apiKey = process.env.GOOGLE_API_KEY;",
+      "line": 4
+    }
+  },
+  {
+    "type": "XSS",
+    "name": "Cross-Site Scripting (XSS)",
+    "severity": "High",
+    "location": "test-vulnerabilities.js:17",
+    "description": "Unsafe innerHTML usage",
+    "fix": "Use textContent or sanitize with DOMPurify",
+    "fixTime": "30 min",
+    "detailedAnalysis": "Found in line 17",
+    "codeSnippet": "document.getElementById('output').innerHTML = msg; // Vulnerable!",
+    "fullLine": "    document.getElementById('output').innerHTML = msg; // Vulnerable!\r",
+    "confidence": "High",
+    "fixedCode": "    document.getElementById('output').textContent = msg; // Vulnerable!\r",
+    "diff": {
+      "original": "    document.getElementById('output').innerHTML = msg; // Vulnerable!\r",
+      "modified": "    document.getElementById('output').textContent = msg; // Vulnerable!\r",
+      "line": 17
+    }
+  },
+  {
+    "type": "SQL Injection",
+    "name": "Potential SQL Injection",
+    "severity": "Critical",
+    "location": "test-vulnerabilities.js:23",
+    "description": "SQL query with string concatenation",
+    "fix": "Use parameterized queries",
+    "fixTime": "1 hr",
+    "detailedAnalysis": "Found in line 23",
+    "codeSnippet": "exec(`ls ${userInput}`); // Vulnerable!",
+    "fullLine": "    exec(`ls ${userInput}`); // Vulnerable!\r",
+    "confidence": "Medium",
+    "fixedCode": "    // Use execFile for safer execution\n    execFile('ls', [userInput], (err, stdout) => { ... });",
+    "diff": {
+      "original": "    exec(`ls ${userInput}`); // Vulnerable!\r",
+      "modified": "    // Use execFile for safer execution\n    execFile('ls', [userInput], (err, stdout) => { ... });",
+      "line": 23
+    }
+  },
+  {
+    "type": "Insecure HTTP",
+    "name": "Insecure HTTP Usage",
+    "severity": "Low",
+    "location": "test-vulnerabilities.js:32",
+    "description": "Using HTTP instead of HTTPS",
+    "fix": "Use HTTPS for all connections",
+    "fixTime": "15 min",
+    "detailedAnalysis": "Found in line 32",
+    "codeSnippet": "const apiUrl = \"http://api.example.com/data\";",
+    "fullLine": "const apiUrl = \"http://api.example.com/data\";\r",
+    "confidence": "High",
+    "fixedCode": "const apiUrl = \"https://api.example.com/data\";\r",
+    "diff": {
+      "original": "const apiUrl = \"http://api.example.com/data\";\r",
+      "modified": "const apiUrl = \"https://api.example.com/data\";\r",
+      "line": 32
+    }
+  },
+  {
+    "type": "Information Disclosure",
+    "name": "Sensitive Data Logging",
+    "severity": "Medium",
+    "location": "test-vulnerabilities.js:35",
+    "description": "Logging sensitive information",
+    "fix": "Remove sensitive data from logs",
+    "fixTime": "15 min",
+    "detailedAnalysis": "Found in line 35",
+    "codeSnippet": "console.log(\"User password:\", password);",
+    "fullLine": "console.log(\"User password:\", password);\r",
+    "confidence": "Medium",
+    "fixedCode": "console.log(\"User password:\", \"[REDACTED]\");\r",
+    "diff": {
+      "original": "console.log(\"User password:\", password);\r",
+      "modified": "console.log(\"User password:\", \"[REDACTED]\");\r",
+      "line": 35
+    }
+  }
+]

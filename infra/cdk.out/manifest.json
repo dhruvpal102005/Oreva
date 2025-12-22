@@ -1,0 +1,101 @@
+{
+  "version": "36.0.0",
+  "artifacts": {
+    "OrevaScannerStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "OrevaScannerStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "OrevaScannerStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://209578578070/us-east-1",
+      "properties": {
+        "templateFile": "OrevaScannerStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::209578578070:role/cdk-hnb659fds-deploy-role-209578578070-us-east-1",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::209578578070:role/cdk-hnb659fds-cfn-exec-role-209578578070-us-east-1",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-209578578070-us-east-1/894d322072ba5e55752b6923bc63680a074d2311bd6bf4683a3772e84118d313.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "OrevaScannerStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::209578578070:role/cdk-hnb659fds-lookup-role-209578578070-us-east-1",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "OrevaScannerStack.assets"
+      ],
+      "metadata": {
+        "/OrevaScannerStack/ScannerFunction/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ScannerFunctionServiceRole2A05BEFD"
+          }
+        ],
+        "/OrevaScannerStack/ScannerFunction/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ScannerFunctionServiceRoleDefaultPolicy945CFF2B"
+          }
+        ],
+        "/OrevaScannerStack/ScannerFunction/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ScannerFunction1B1642AE"
+          }
+        ],
+        "/OrevaScannerStack/ScannerFunction/FunctionUrl/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ScannerFunctionFunctionUrlF812228E"
+          }
+        ],
+        "/OrevaScannerStack/ScannerFunction/invoke-function-url": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ScannerFunctioninvokefunctionurlC6DB64A6"
+          }
+        ],
+        "/OrevaScannerStack/ScannerUrl": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ScannerUrl"
+          }
+        ],
+        "/OrevaScannerStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/OrevaScannerStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/OrevaScannerStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "OrevaScannerStack"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  }
+}

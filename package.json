@@ -1,0 +1,43 @@
+{
+  "name": "oreva",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.946.0",
+    "@google/generative-ai": "^0.24.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@tabler/icons-react": "^3.36.0",
+    "@types/aws-lambda": "^8.10.159",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "diff": "^8.0.2",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
+    "framer-motion": "^12.23.26",
+    "lucide-react": "^0.454.0",
+    "next": "^15.0.3",
+    "next-auth": "^4.24.13",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "^15.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
