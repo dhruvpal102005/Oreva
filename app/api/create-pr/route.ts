@@ -13,6 +13,7 @@ interface CreatePRRequest {
     issueTitle: string;
     issueDescription: string;
     branchName?: string;
+    fullFileContent?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body: CreatePRRequest = await req.json();
-        const { repoFullName, filePath, originalCode, fixedCode, issueTitle, issueDescription, branchName } = body;
+        const { repoFullName, filePath, originalCode, fixedCode, issueTitle, issueDescription, branchName, fullFileContent } = body;
 
         // Validate inputs
         if (!repoFullName || !filePath || !fixedCode || !issueTitle) {
@@ -57,7 +58,8 @@ export async function POST(req: NextRequest) {
             issueTitle,
             issueDescription,
             githubToken: session.accessToken,
-            branchName
+            branchName,
+            fullFileContent
         });
 
         if (!result.success) {

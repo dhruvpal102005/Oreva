@@ -15,6 +15,7 @@ interface GitHubPROptions {
     issueDescription: string;
     githubToken: string;
     branchName?: string;
+    fullFileContent?: string;
 }
 
 interface GitHubPRResult {
@@ -180,9 +181,9 @@ export class GitHubPRCreator {
     /**
      * Main method to create a PR with the fix
      */
-    async createFixPR(options: Omit<GitHubPROptions, 'owner' | 'repo' | 'githubToken'>): Promise<GitHubPRResult> {
+    async createFixPR(options: Omit<GitHubPROptions, 'owner' | 'repo' | 'githubToken'> & { fullFileContent?: string }): Promise<GitHubPRResult> {
         try {
-            const { filePath, originalCode, fixedCode, issueTitle, issueDescription } = options;
+            const { filePath, originalCode, fixedCode, issueTitle, issueDescription, fullFileContent } = options;
 
             console.log(`🔧 Creating PR for ${this.owner}/${this.repo}/${filePath}`);
 
@@ -200,15 +201,35 @@ export class GitHubPRCreator {
             await this.createBranch(branchName, latestCommitSha);
             console.log(`🌿 Created branch: ${branchName}`);
 
-            // Step 4: Get current file content
+            // Step 4: Get current file content (we need the SHA even if we have full content)
             const { content: currentContent, sha: fileSha } = await this.getFileContent(filePath, defaultBranch);
             console.log(`📄 Got file SHA: ${fileSha}`);
 
-            // Step 5: Apply the fix
-            const fixedContent = currentContent.replace(originalCode, fixedCode);
+            // Step 5: Determine the new file content
+            // If fullFileContent is provided (from frontend), use it directly.
+            // Otherwise try to replace originalCode with fixedCode (legacy/fallback).
+            let finalContent: string;
+
+            if (fullFileContent) {
+                console.log('📦 Using provided full file content');
+                finalContent = fullFileContent;
+            } else {
+                console.log('🔄 Performing text replacement');
+                // Normalize line endings for better matching
+                const normalizedCurrent = currentContent.replace(/\r\n/g, '\n');
+                const normalizedOriginal = originalCode.replace(/\r\n/g, '\n');
+
+                if (normalizedCurrent.includes(normalizedOriginal)) {
+                    finalContent = normalizedCurrent.replace(normalizedOriginal, fixedCode);
+                } else {
+                    // Fallback: Try to replace strict check or log warning
+                    console.warn('⚠️ Could not find exact original code match. PR might introduce unexpected changes or fail.');
+                    finalContent = currentContent.replace(originalCode, fixedCode);
+                }
+            }
 
             // Step 6: Update the file
-            await this.updateFile(filePath, fixedContent, fileSha, branchName, `fix: ${issueTitle}`);
+            await this.updateFile(filePath, finalContent, fileSha, branchName, `fix: ${issueTitle}`);
             console.log(`✅ Updated file in branch ${branchName}`);
 
             // Step 7: Create PR

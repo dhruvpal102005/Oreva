@@ -273,6 +273,18 @@ export default function AutoFixPage() {
                 issueTitle: selectedIssue.name
             });
 
+            // Calculate the full file content with the fix applied
+            // This ensures we don't rely on brittle text replacement on the backend
+            const lines = fileContent.split('\n');
+            const targetLineIndex = firstChange.lineNumber - 1; // 0-based index
+            const fixedLines = [...lines];
+            const fixedCodeLines = firstChange.newCode.split('\n');
+            const linesToRemove = firstChange.oldCode.split('\n').length;
+
+            // Apply the fix locally to get the final content
+            fixedLines.splice(targetLineIndex, linesToRemove, ...fixedCodeLines);
+            const fullFileContent = fixedLines.join('\n');
+
             const response = await fetch('/api/create-pr', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -282,7 +294,8 @@ export default function AutoFixPage() {
                     originalCode: firstChange.oldCode,
                     fixedCode: firstChange.newCode,
                     issueTitle: selectedIssue.name,
-                    issueDescription: selectedIssue.description || llmGeneratedFix.explanation
+                    issueDescription: selectedIssue.description || llmGeneratedFix.explanation,
+                    fullFileContent: fullFileContent // Send the patched content
                 })
             });
 
