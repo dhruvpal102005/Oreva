@@ -45,6 +45,7 @@ interface Violation {
     filePath?: string; // Added for UI
     lineRange?: string; // Added for UI
     confidence?: "High" | "Medium" | "Low"; // Added for UI
+    repositoryFullName?: string; // Added for PR creation
 }
 
 interface FileGroup {
@@ -109,6 +110,10 @@ export default function AutoFixPage() {
     const [sendToAikido, setSendToAikido] = useState(false);
     const [ignoredIssues, setIgnoredIssues] = useState<Set<string>>(new Set());
     const [issuesToIgnore, setIssuesToIgnore] = useState<any[]>([]);
+
+    // Create PR State
+    const [creatingPR, setCreatingPR] = useState(false);
+    const [prCreated, setPrCreated] = useState<{ url: string; number: number } | null>(null);
 
     const handleOpenFix = async (issue: any) => {
         setSelectedIssue(issue);
@@ -237,6 +242,70 @@ export default function AutoFixPage() {
         setIgnoreReason('');
         setSendToAikido(false);
     };
+
+    // Handle creating PR
+    const handleCreatePR = async () => {
+        if (!selectedIssue || !llmGeneratedFix || !fileContent) {
+            console.error('Missing required data for PR creation');
+            return;
+        }
+
+        setCreatingPR(true);
+        setPrCreated(null);
+
+        try {
+            const firstFile = llmGeneratedFix.files[0];
+            const firstChange = firstFile?.changes[0];
+
+            if (!firstFile || !firstChange) {
+                throw new Error('No fix data available');
+            }
+
+            // Extract file path (remove repo name if present and remove line numbers)
+            let filePath: string = (selectedIssue.filePath || '').split('|')[1]?.trim() || selectedIssue.filePath || '';
+
+            // Remove line number suffix (e.g., ":1" or ":12")
+            filePath = filePath.replace(/:\d+$/, '') || '';
+
+            console.log('🚀 Creating PR with data:', {
+                repoFullName: selectedIssue.repositoryFullName,
+                filePath,
+                issueTitle: selectedIssue.name
+            });
+
+            const response = await fetch('/api/create-pr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    repoFullName: selectedIssue.repositoryFullName,
+                    filePath: filePath,
+                    originalCode: firstChange.oldCode,
+                    fixedCode: firstChange.newCode,
+                    issueTitle: selectedIssue.name,
+                    issueDescription: selectedIssue.description || llmGeneratedFix.explanation
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to create PR');
+            }
+
+            console.log('✅ PR created successfully:', data.prUrl);
+            setPrCreated({ url: data.prUrl, number: data.prNumber });
+
+            // Show success message
+            alert(`✅ Pull Request #${data.prNumber} created successfully!\n\nView it at: ${data.prUrl}`);
+
+        } catch (error: any) {
+            console.error('❌ Error creating PR:', error);
+            alert(`Failed to create PR: ${error.message}`);
+        } finally {
+            setCreatingPR(false);
+        }
+    };
+
 
 
     useEffect(() => {
@@ -1111,9 +1180,22 @@ export default function AutoFixPage() {
                                     Cancel
                                 </button>
                                 <div className="flex items-center -space-x-px rounded-lg overflow-hidden shadow-sm">
-                                    <button className="px-4 py-2 text-sm font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] border-r border-indigo-500 transition-colors flex items-center">
-                                        <Zap className="w-4 h-4 mr-2" />
-                                        Create PR
+                                    <button
+                                        onClick={handleCreatePR}
+                                        disabled={creatingPR || !llmGeneratedFix}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-[#6366f1] hover:bg-[#4f46e5] border-r border-indigo-500 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {creatingPR ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Creating PR...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Zap className="w-4 h-4 mr-2" />
+                                                Create PR
+                                            </>
+                                        )}
                                     </button>
                                     <button className="px-2 py-2 bg-[#6366f1] hover:bg-[#4f46e5] transition-colors flex items-center justify-center">
                                         <ChevronDown className="w-5 h-5 text-white" />
